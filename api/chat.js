@@ -1,8 +1,7 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Yahan hum bot ko rules samjha rahe hain
 const STORE_RULES = `
 Aap hamare online store ke friendly AI Shopping Assistant hain.
 
@@ -14,7 +13,6 @@ Qawaneen (Rules):
 `;
 
 export default async function handler(req, res) {
-  // CORS headers allow karte hain ke aapki Shopify site is API se baat kar sake
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -24,30 +22,26 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Only POST method is allowed' });
+    return res.status(405).json({ error: 'Only POST allowed' });
   }
 
   try {
     const { message } = req.body;
-
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    // Gemini AI ko sawal bhejna
-    const response = await ai.models.generateContent({
+    const model = genAI.getGenerativeModel({ 
       model: 'gemini-1.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: `${STORE_RULES}\n\nCustomer Ka Sawal: ${message}` }]
-        }
-      ]
+      systemInstruction: STORE_RULES
     });
 
-    return res.status(200).json({ reply: response.text });
+    const result = await model.generateContent(message);
+    const replyText = result.response.text();
+
+    return res.status(200).json({ reply: replyText });
   } catch (error) {
     console.error('Error:', error);
-    return res.status(500).json({ error: 'Server par masla hua. Koshish karein baad mein.' });
+    return res.status(500).json({ error: 'Server issue' });
   }
 }
