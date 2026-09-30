@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -18,29 +16,46 @@ export default async function handler(req, res) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ reply: 'GEMINI_API_KEY is missing in Vercel settings.' });
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // Model string update
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
+    const systemPrompt = `You are a helpful and polite shopping assistant for the online store "Flitit".
+Website: Flitit
+Store Categories: Toys, Collectibles, Babies, Gaming, Electronics, Home & Kitchen, Beauty, Perfumes, Outdoor, Cricut.
+Rules:
+1. Greet the customer and answer questions regarding toys, electronics, gifts, or products on Flitit.
+2. Reply in Roman Urdu or English depending on how the customer asked.
+3. Keep the answer friendly, helpful, and concise.`;
 
-    const prompt = `
-    You are an intelligent shopping assistant for the online store "Flitit".
-    Categories on store: Toys, Collectibles, Babies, Gaming, Electronics, Home & Kitchen, Beauty, Perfumes, Outdoor, Cricut.
-    
-    Instructions:
-    1. Respond warmly in Roman Urdu or English depending on how the customer asked.
-    2. Suggest relevant product categories and help them find what they need.
-    3. Keep answers concise, helpful, and friendly.
+    const requestPayload = {
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: `${systemPrompt}\n\nCustomer: ${message}\nAssistant:` }
+          ]
+        }
+      ]
+    };
 
-    Customer: ${message}
-    Assistant:`;
+    // Direct Google Gemini API endpoint call
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestPayload)
+      }
+    );
 
-    const result = await model.generateContent(prompt);
-    const replyText = result.response.text();
+    const data = await response.json();
 
+    if (!response.ok) {
+      console.error('Google API Error:', data);
+      return res.status(500).json({ reply: 'Google API Error: ' + (data.error?.message || 'Failed to fetch response') });
+    }
+
+    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Koi jawab nahi mila.';
     return res.status(200).json({ reply: replyText });
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('Server Error:', error);
     return res.status(500).json({ reply: 'Error: ' + error.message });
   }
 }
