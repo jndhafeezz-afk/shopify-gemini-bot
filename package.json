@@ -1,8 +1,8 @@
 {
   "name": "shopify-gemini-bot",
   "version": "1.0.0",
-  "main": "api/chat.js",
+  "type": "module",
   "dependencies": {
-    "@google/genai": "^0.1.1"
+    "@google/generative-ai": "^0.21.0"
   }
 }
